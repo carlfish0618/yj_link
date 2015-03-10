@@ -1,0 +1,135 @@
+
+============================
+1-利润表
+earning_actual_merge(只考虑季度/半年度/年度的累积净利润)
+=============================
+
+基本数据:
+	stock_code
+	stock_name
+
+当期数据:
+	report_period: 报告期  (文本格式，YYYYMMDD)
+	earning_n: 净利润
+	report_date: 报告发布时间（当期时间）
+	gro_n: 同比增长率(%)
+	
+同比数据:
+	report_period_o: 前个报告期(去年同期) (文本格式，YYYYMMDD)
+	earning_o: 去年同期净利润
+	e_type: 标注同比利润类型(1-持续亏损 2-扭亏 3-首亏 4-持续正盈利; 缺失表示无同比数据)
+
+相邻期增速的环比数据:
+	nb_report_period: 相邻的前一个报告期 (文本格式，YYYYMMDD)
+	nb_report_date: 相邻期公告时间
+	nb_gro_n: 相邻期同比增速
+	nb_e_type: 相邻期同比利润类型
+	nb_type: 标注增速环比类型(1-改善 2-恶化； 缺失-不可比较)
+
+(已发布的)最近季度的利润数据:
+	prev_report_period
+	prev_report_date
+	prev_gro_n
+	prev_e_type
+
+
+(已发布的)同期业绩预告:
+	ff_efctid
+	ff_report_date
+	ff_source
+	ff_earning_des
+	ff_eup
+	ff_eup_type
+	ff_elow
+	ff_elow_type
+	ff_f_type
+	ff_is_up_original
+	ff_is_low_original
+	is_improve: (真实业绩相对同期业绩预告） 1- 绝对改善，0-不确定，-1-绝对恶化，.-无法比较
+
+(信号）
+	choose: 1-以真实公告为比较基准，0-以当期业绩预告为比较基准；当之前没有任何比较基准允许缺失
+	is_valid: 1-比较基准有意义，0-比较基准无意义 （比较基准超过一年）或同期业绩预告
+	is_qoq: 1- 恰好是季度环比或者为同期业绩预告，0- 不是相邻季度的环比 
+	is_link: 业绩链有意义(至少有一个业绩预告有上下限，同时存在一年内的比较基准)
+	is_signal: 改善与否信号是否有意义 (前提: 业绩链有意义)
+	is_improve: 1-绝对改善 0-不确定 -1-绝对恶化 2-数据不确定性强 .-没办法比较 
+
+注意事项:
+(1) 针对同一公告期，不存在重复值。
+(2) 同一公告日，可能存在大于两个报告期的数据。(因季报和年报可能同时公告）。暂不予以去重。
+
+可以补充的模块:
+（已发布的) 最近季度的业绩预告数据
+	pf_efctid
+	pf_report_date
+	pf_report_period
+	pf_source
+	pf_earning_des
+	pf_eup_type
+	pf_eup
+	pf_elow_type
+	pf_elow
+	pf_f_type
+	pf_is_up_original
+	pf_is_low_original
+
+===============================
+2- 业绩预告表
+earning_forecast_merge(只考虑季度/半年度/年度的累积净利润)
+===================================
+
+
+基本数据:
+	stock_code
+	stock_name
+	efctid: 业绩事件id 
+当期数据:
+	report_date: 报告发布时间
+	report_period: 报告期 (文本格式，YYYYMMDD)
+	source: 业绩事件来源
+	earning_des: 描述
+	eup: 上限
+	eup_type: 上限类型
+	elow: 下限
+	elow_type: 下限类型
+	f_type: 标注业绩类型(f_type = 0: 基期亏损，增长率预告失效；1-没有业绩预告数据; 2-缺少上限、下限其一; 3- 上下限都存在)
+	is_up_original: 标注eup是原始数据，或是计算所得
+	is_low_original: 标注elow是原始数据，或计算所得
+
+(已发布的)最近季度的业绩公告:
+	prev_efctid
+	prev_report_date
+	prev_report_period
+	prev_source
+	prev_earning_des
+	prev_eup_type
+	prev_eup
+	prev_elow_type
+	prev_elow
+	prev_f_type
+	prev_is_up_original
+	prev_is_low_original
+
+(已发布的)最近季度的利润数据:
+	a_report_period
+	a_report_date
+	a_gro_n
+	a_e_type
+
+(信号标注):
+	choose: 1-以真实公告为比较基准，0-以前期业绩预告为比较基准；当之前没有任何比较基准允许缺失
+	is_valid: 1-比较基准有意义，0-比较基准无意义 （比较基准超过一年）
+	is_qoq: 1- 恰好是季度环比，0- 不是相邻季度的环比 
+	is_link: 业绩链有意义(至少有一个业绩预告有上下限，同时存在一年内的比较基准)
+	is_signal: 改善与否信号是否有意义 (前提: 业绩链有意义)
+	is_improve: 1-绝对改善 0-不确定 -1-绝对恶化 2-数据不确定性强 .-没办法比较
+
+(其他) cmp_period: 比较基准的报告期
+
+
+注意事项:
+(1) 针对同一公告期，已按照发布时间以及数据来源，进行去重。
+(2) 同一公告日，可能存在大于两个报告期的预告数据。暂不予以去重。	
+	
+	
