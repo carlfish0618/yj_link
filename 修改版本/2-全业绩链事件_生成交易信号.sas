@@ -7,9 +7,7 @@
 数字字典可以参考"业绩事件提示表说明.txt"。
 ****/
 
-
-%INCLUDE  "D:\Research\CODE\sascode\event\完整范例\date_macro.sas";
-%LET tail_date = 28feb2015;
+%LET tail_date = 27feb2015;
 
 
 /* 外部表1: busdate */
@@ -134,6 +132,7 @@ DATA merge_signal(keep = primary_key stock_code stock_name report_date report_pe
 		sell_date = f_sell_date;
 	END;
 	FORMAT report_date sell_date mmddyy10.;
+	IF missing(sell_date) OR sell_date >= "&tail_date."d THEN sell_date = "&tail_date."d;
 RUN;
 PROC SQL;
 	DROP TABLE earning_actual_clear, earning_forecast_clear;

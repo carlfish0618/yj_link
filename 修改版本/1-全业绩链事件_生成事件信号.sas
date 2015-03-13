@@ -7,8 +7,6 @@
 ***/
 
 
-%INCLUDE  "F:\Research\GIT_BACKUP\utils\date_macro.sas";
-
 /** 新增：日期开始-结束标志 **/
 %LET endDate = 2009-12-31;  /** 回测开始的日期 */
 %LET myEndDate = 31dec2009;
