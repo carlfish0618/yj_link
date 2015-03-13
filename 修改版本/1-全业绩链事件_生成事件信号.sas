@@ -1,6 +1,13 @@
-/* 辅助表 */
+/*** 代码功能: 对利润表和业绩预告表信息进行整理 */
 
-%INCLUDE  "D:\Research\CODE\sascode\event\完整范例\date_macro.sas";
+/**** 最终输出:
+(1) 利润表：earning_actual_merge
+(2)　业绩预告表：earning_forecast_merge
+数字字典可以参考"业绩事件提示表说明.txt"。
+***/
+
+
+%INCLUDE  "F:\Research\GIT_BACKUP\utils\date_macro.sas";
 
 /** 新增：日期开始-结束标志 **/
 %LET endDate = 2009-12-31;  /** 回测开始的日期 */
@@ -85,7 +92,11 @@ PROC SQL;
 		B.report_date AS prev_report_date LABEL "prev_report_date", 
 		B.gro_n AS prev_gro_n LABEL "prev_gro_n",
 		B.e_type AS prev_e_type LABEL "prev_e_type" 
-	FROM earning_actual_raw A LEFT JOIN earning_actual_raw B
+	FROM earning_actual_raw A LEFT JOIN 
+	(
+	SELECT stock_code, report_period, report_date, gro_n, e_type   /** 选子集能让速度变快 */
+	FROM earning_actual_raw
+	)B
 	ON a.report_period > b.report_period AND A.stock_code = B.stock_code AND a.report_date >= b.report_date 
 	GROUP BY A.primary_key
 	HAVING max(B.report_period) = B.report_period 
@@ -206,7 +217,11 @@ RUN;
 PROC SQL;
 	CREATE TABLE tmp AS
 	SELECT A.*,b.earning_n 
-	FROM earning_forecast_raw a LEFT JOIN earning_actual_raw b
+	FROM earning_forecast_raw a LEFT JOIN
+	(
+	SELECT stock_code, report_period, report_date, earning_n
+	FROM earning_actual_raw
+	)b
 	ON a.stock_code = b.stock_code AND a.report_period_o = b.report_period
 	AND a.report_date >= B.report_date
 	ORDER BY primary_key;
@@ -300,7 +315,11 @@ PROC SQL;
 		B.report_date AS a_report_date LABEL "a_report_date",
 		B.gro_n AS a_gro_n LABEL "a_gro_n",
 		B.e_type AS a_e_type LABEL "a_e_type"
-	FROM earning_forecast_raw A LEFT JOIN earning_actual_merge B
+	FROM earning_forecast_raw A LEFT JOIN 
+	(
+	SELECT stock_code, report_date, report_period, gro_n, e_type
+	FROM earning_actual_raw
+	)B
 	ON A.stock_code = B.stock_code AND A.report_date>= B.report_date
 	GROUP BY A.primary_key
 	HAVING max(B.report_period) = B.report_period  /** 报告期优先 */
@@ -326,7 +345,12 @@ PROC SQL;
 		B.elow_type AS prev_elow_type LABEL "prev_elow_type",
 		B.elow AS prev_elow LABEL "prev_elow",
 		 B.f_type AS prev_f_type LABEL "prev_f_type"
-	FROM earning_forecast_merge A LEFT JOIN earning_forecast_raw B
+	FROM earning_forecast_merge A LEFT JOIN 
+	(
+	SELECT primary_key, stock_code, report_date, report_period, 
+			source, eup_type, eup, elow_type, elow, f_type
+	FROM earning_forecast_raw
+	)B
 	ON A.stock_code = B.stock_code  AND A.report_date >= B.report_date AND A.report_period > B.report_period 
 	GROUP BY A.primary_key
 	HAVING B.report_period = max(B.report_period); /** 先选报告期最近的 */
@@ -371,8 +395,12 @@ Q2: 是否需要财报期>预告期?  --> 要。这样可以避免错误的将(1c)和(2c)作为退出时点。
 PROC SQL;
 	CREATE TABLE tmp AS
 	SELECT A.*, B.report_date AS next_a_report_date LABEL "next_a_report_date", 
-		B.report_period AS next_a_report_period LABEL "next_a_reshijiport_period"
-	FROM earning_forecast_merge A LEFT JOIN earning_actual_raw B
+		B.report_period AS next_a_report_period LABEL "next_a_report_period"
+	FROM earning_forecast_merge A LEFT JOIN 
+	(
+	SELECT stock_code, report_date, report_period
+	FROM earning_actual_raw
+	) B
 	ON A.stock_code = B.stock_code AND B.report_date > A.report_date 
 	GROUP BY A.primary_key
 	HAVING B.report_date = min(B.report_date);
@@ -393,9 +421,12 @@ QUIT;
 PROC SQL;
 	CREATE TABLE tmp AS
 	SELECT A.*, B.primary_key AS next_key LABEL "next_key",
-		B.report_date AS next_report_date LABEL "next_report_date",
-		B.report_period AS next_report_period LABEL "next_report_period"
-	FROM earning_forecast_merge A LEFT JOIN earning_forecast_raw B
+		B.report_date AS next_f_report_date LABEL "next_f_report_date",
+		B.report_period AS next_f_report_period LABEL "next_f_report_period"
+	FROM earning_forecast_merge A LEFT JOIN
+	(SELECT primary_key, stock_code, report_date, report_period
+	FROM earning_forecast_raw
+	)B
 	ON A.stock_code = B.stock_code AND A.report_date < B.report_date
 	GROUP BY A.primary_key
 	HAVING B.report_date = min(B.report_date);
@@ -409,7 +440,7 @@ PROC SQL;
 	SELECT *
 	FROM tmp
 	GROUP BY primary_key
-	HAVING  next_report_period = min(next_report_period)   /** 选期数最近的 */
+	HAVING  next_f_report_period = min(next_f_report_period)   /** 选期数最近的 */
 	)
 	GROUP BY primary_key
 	HAVING next_key = min(next_key)  /* 只是为了保证一对一的关系，没有任何筛选要求 */
@@ -528,7 +559,7 @@ DATA earning_forecast_merge(drop = d_eup d_elow);
 			ELSE is_improve = 2; /* too many uncertainty */
 		END;
 	END;
-	ELSE is_improve = 2; /** 2认识无法比较 **/
+	ELSE is_improve = 3; /** 信号无意义 **/
 RUN;
 
 
@@ -546,7 +577,11 @@ PROC SQL;
 		B.elow AS pf_elow LABEL "pf_elow",
 		B.elow_type AS pf_elow_type LABEL "pf_elow_type",
 		B.f_type AS pf_f_type LABEL "pf_f_type"
-		FROM earning_actual_merge A LEFT JOIN earning_forecast_raw B
+		FROM earning_actual_merge A LEFT JOIN 
+		(SELECT primary_key, stock_code, report_date, report_period, source, eup, eup_type,
+			elow, elow_type, f_type
+		FROM earning_forecast_raw
+		)B
 		ON A.stock_code = B.stock_code AND  A.report_date>=B.report_date AND A.report_period >= B.report_period 
 		GROUP BY A.primary_key
 		HAVING max(B.report_period) = B.report_period;
@@ -571,14 +606,14 @@ DATA earning_actual_merge;
 	SET earning_actual_merge;
 	/* 建立业绩链比较基准： 1-最近真实业绩公告， 0-最近业绩预告*/
 	IF NOT MISSING(prev_report_period) AND NOT MISSING(pf_report_period) THEN DO;
-		IF input(pf_report_period,8.) <= input(pf_report_period,8.) THEN choose = 1; 
+		IF input(pf_report_period,8.) <= input(prev_report_period,8.) THEN choose = 1; 
 		ELSE choose = 0; 
 	END;
 	ELSE IF NOT MISSING(pf_report_period) THEN choose = 0;
-	ELSE IF NOT MISSING(pf_report_period) THEN choose = 1;
+	ELSE IF NOT MISSING(prev_report_period) THEN choose = 1;
 	ELSE choose = -1;
 	
-	IF choose = 1 THEN cmp_period = pf_report_period;
+	IF choose = 1 THEN cmp_period = prev_report_period;
 	ELSE IF choose = 0 THEN cmp_period = pf_report_period;
 	ELSE cmp_period = .;
 
@@ -642,7 +677,7 @@ DATA earning_actual_merge;
 			END;	
 		END;
 	END;
-	ELSE is_improve = 2; 
+	ELSE is_improve = 3; 
 RUN;
 
 
@@ -653,8 +688,12 @@ RUN;
 PROC SQL;
 	CREATE TABLE tmp AS
 	SELECT A.*, B.report_date AS next_a_report_date LABEL "next_a_report_date", 
-		B.report_period AS next_a_report_period LABEL "next_a_reshijiport_period"
-	FROM earning_actual_merge A LEFT JOIN earning_actual_raw B
+		B.report_period AS next_a_report_period LABEL "next_a_report_period"
+	FROM earning_actual_merge A LEFT JOIN 
+	(
+	  SELECT stock_code, report_date, report_period
+	  FROM earning_actual_raw
+	)B
 	ON A.stock_code = B.stock_code AND B.report_date > A.report_date 
 	GROUP BY A.primary_key
 	HAVING B.report_date = min(B.report_date);
@@ -675,9 +714,13 @@ QUIT;
 PROC SQL;
 	CREATE TABLE tmp AS
 	SELECT A.*, B.primary_key AS next_key LABEL "next_key",
-		B.report_date AS next_report_date LABEL "next_report_date",
-		B.report_period AS next_report_period LABEL "next_report_period"
-	FROM earning_actual_merge A LEFT JOIN earning_forecast_raw B
+		B.report_date AS next_f_report_date LABEL "next_f_report_date",
+		B.report_period AS next_f_report_period LABEL "next_f_report_period"
+	FROM earning_actual_merge A LEFT JOIN
+	(
+	SELECT primary_key, stock_code, report_date, report_period
+	FROM earning_forecast_raw
+	)B
 	ON A.stock_code = B.stock_code AND A.report_date < B.report_date
 	GROUP BY A.primary_key
 	HAVING B.report_date = min(B.report_date);
@@ -691,135 +734,15 @@ PROC SQL;
 	SELECT *
 	FROM tmp
 	GROUP BY primary_key
-	HAVING  next_report_period = min(next_report_period)   /** 选期数最近的 */
+	HAVING  next_f_report_period = min(next_f_report_period)   /** 选期数最近的 */
 	)
 	GROUP BY primary_key
 	HAVING next_key = min(next_key)  /* 只是为了保证一对一的关系，没有任何筛选要求 */
 	ORDER BY primary_key;
 QUIT;
 
-/*PROC SQL;*/
-/*	DROP TABLE tmp, earning_forecast_raw, earning_actual_raw, earning_actual;*/
-/*QUIT;*/
-
-/********* 模块4: 调整到交易日，同个日期的去重 **/
-DATA earning_actual_merge;
-	SET earning_actual_merge;
-	id = _N_;
-RUN;
-/* 利润表 */
-%adjust_date(busday_table = busday , raw_table =earning_actual_merge,colname = report_date); 
-DATA earning_actual_merge(drop = report_date_2 adj_report_date report_date_is_busday);
-	SET earning_actual_merge(rename = (report_date = report_date_2));
-	report_date = adj_report_date;
-	FORMAT report_date mmddyy10.;
-RUN;
-
-
-PROC SORT DATA = earning_actual_merge;
-	BY stock_code report_date descending report_period;
-RUN;
-
-
-PROC SORT DATA = earning_actual_merge;
-	BY stock_code report_date descending report_period;
-RUN;
-
-PROC SORT DATA = earning_actual_merge NODUPKEY OUT = earning_actual_clear;
-	BY stock_code report_date;
-RUN;
-
-/* 业绩预告 */
-%adjust_date(busday_table = busday , raw_table =earning_forecast_merge,colname = report_date); 
-DATA earning_forecast_merge(drop = report_date_2 adj_report_date report_date_is_busday);
-	SET earning_forecast_merge(rename = (report_date = report_date_2 efctid = id));
-	report_date = adj_report_date;
-	FORMAT report_date mmddyy10.;
-RUN;
-
-PROC SORT DATA = earning_forecast_merge;
-	BY stock_code report_date descending report_period descending source;
-RUN;
-PROC SORT DATA = earning_forecast_merge NODUPKEY OUT = earning_forecast_clear;
-	BY stock_code report_date;
-RUN;
-
-
-/*** 模块5: 构造买入/卖出信号 **/
-DATA actual_signal;
-	SET earning_actual_clear(keep = id stock_code stock_name report_date report_period is_improve);
-	IF is_improve IN (1) THEN a_signal = 1;   
-	ELSE a_signal = 0;
-RUN;
-
-DATA forecast_signal(drop = eup_type);
-	SET earning_forecast_clear(keep = id eup_type stock_code stock_name report_date report_period is_improve);
-	IF is_improve IN (1,0) AND strip(eup_type) IN ("预增")THEN f_signal = 1;
-	ELSE f_signal = 0;
-RUN;
-
-
-
-
 PROC SQL;
-	CREATE TABLE merge_signal AS
-	SELECT A.id AS f_id, A.stock_code AS f_stock_code, A.stock_name AS f_stock_name, A.report_date AS f_report_date, A.report_period AS f_report_period, A.f_signal, 
-		B.id AS a_id, B.stock_code AS a_stock_code,B.stock_name AS a_stock_name,  B.report_date AS a_report_date, B.report_period AS a_report_period, B.a_signal
-	FROM forecast_signal A FULL JOIN actual_signal B
-	ON A.stock_code = B.stock_code AND A.report_date = B.report_date
-	ORDER BY A.stock_code, B.stock_code, A.report_date, B.report_date;
+	DROP TABLE tmp, earning_forecast_raw, earning_actual_raw, earning_actual;
 QUIT;
-
-DATA merge_signal(keep = stock_code stock_name report_date report_period signal tar_cmp rename = (report_date = date));
-	SET merge_signal;
-	report_date = max(a_report_date,f_report_date);
-	IF not missing(f_id) AND not missing(a_id) THEN DO;
-		stock_code = a_stock_code;
-		stock_name = a_stock_name;
-		IF f_report_period <= a_report_period THEN DO;
-			signal = a_signal; /* 如果财报和业绩预告在同个事件发布，且是针对同个报告期，则以财报数据为准 */
-			tar_cmp = 0;
-			report_period = a_report_period;
-		END;
-		ELSE DO;
-			signal = f_signal;
-			tar_cmp = 1;
-			report_period = f_report_period;
-		END;
-	END;
-	ELSE IF missing(f_id) THEN DO;
-		stock_code = a_stock_code;
-		stock_name = a_stock_name;
-		signal = a_signal;
-		tar_cmp = 0;
-		report_period = a_report_period;
-	END;
-	ELSE DO;
-		stock_code = f_stock_code;
-		stock_name = f_stock_name;
-		signal = f_signal;
-		tar_cmp = 1;
-		report_period = f_report_period;
-	END;
-	FORMAT report_date mmddyy10.;
-RUN;
-PROC SQL;
-	DROP TABLE actual_signal, forecast_signal;
-QUIT;
-
-
-/*PROC SQL;*/
-/*	CREATE TABLE tmp AS*/
-/*	SELECT **/
-/*	FROM merge_signal*/
-/*	WHERE missing(stock_code) OR missing(report_date) OR missing(signal) OR missing(tar_cmp) OR missing(report_period);*/
-/*QUIT;*/
-/**/
-/*PROC SQL;*/
-/*	CREATE TABLE tmp AS*/
-/*	SELECT tar_cmp, signal, count(1) AS nobs*/
-/*	FROM merge_signal*/
-/*	GROUP BY tar_cmp, signal;*/
-/*QUIT;*/
 
 

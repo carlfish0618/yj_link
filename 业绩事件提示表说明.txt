@@ -1,3 +1,5 @@
+********************************************事件信号表 **************************
+代码: ~/全业绩链事件_生成事件信号.sas
 
 ============================
 1-利润表
@@ -5,6 +7,7 @@ earning_actual_merge(只考虑季度/半年度/年度的累积净利润)
 =============================
 
 基本数据:
+	primary_key: 
 	stock_code
 	stock_name
 
@@ -12,54 +15,21 @@ earning_actual_merge(只考虑季度/半年度/年度的累积净利润)
 	report_period: 报告期  (文本格式，YYYYMMDD)
 	earning_n: 净利润
 	report_date: 报告发布时间（当期时间）
-	gro_n: 同比增长率(%)
 	
 同比数据:
 	report_period_o: 前个报告期(去年同期) (文本格式，YYYYMMDD)
 	earning_o: 去年同期净利润
+	gro_n: 同比增长率(%)
 	e_type: 标注同比利润类型(1-持续亏损 2-扭亏 3-首亏 4-持续正盈利; 缺失表示无同比数据)
-
-相邻期增速的环比数据:
-	nb_report_period: 相邻的前一个报告期 (文本格式，YYYYMMDD)
-	nb_report_date: 相邻期公告时间
-	nb_gro_n: 相邻期同比增速
-	nb_e_type: 相邻期同比利润类型
-	nb_type: 标注增速环比类型(1-改善 2-恶化； 缺失-不可比较)
 
 (已发布的)最近季度的利润数据:
 	prev_report_period
 	prev_report_date
 	prev_gro_n
 	prev_e_type
+	nb_type: 标注增速环比类型(1-改善 2-恶化； 缺失-不可比较)	
 
 
-(已发布的)同期业绩预告:
-	ff_efctid
-	ff_report_date
-	ff_source
-	ff_earning_des
-	ff_eup
-	ff_eup_type
-	ff_elow
-	ff_elow_type
-	ff_f_type
-	ff_is_up_original
-	ff_is_low_original
-	is_improve: (真实业绩相对同期业绩预告） 1- 绝对改善，0-不确定，-1-绝对恶化，.-无法比较
-
-(信号）
-	choose: 1-以真实公告为比较基准，0-以当期业绩预告为比较基准；当之前没有任何比较基准允许缺失
-	is_valid: 1-比较基准有意义，0-比较基准无意义 （比较基准超过一年）或同期业绩预告
-	is_qoq: 1- 恰好是季度环比或者为同期业绩预告，0- 不是相邻季度的环比 
-	is_link: 业绩链有意义(至少有一个业绩预告有上下限，同时存在一年内的比较基准)
-	is_signal: 改善与否信号是否有意义 (前提: 业绩链有意义)
-	is_improve: 1-绝对改善 0-不确定 -1-绝对恶化 2-数据不确定性强 .-没办法比较 
-
-注意事项:
-(1) 针对同一公告期，不存在重复值。
-(2) 同一公告日，可能存在大于两个报告期的数据。(因季报和年报可能同时公告）。暂不予以去重。
-
-可以补充的模块:
 （已发布的) 最近季度的业绩预告数据
 	pf_efctid
 	pf_report_date
@@ -74,6 +44,26 @@ earning_actual_merge(只考虑季度/半年度/年度的累积净利润)
 	pf_is_up_original
 	pf_is_low_original
 
+
+(未发布) 当期（或下N期）业绩公告
+	next_key
+	next_f_report_date
+	next_f_report_period
+
+(未发布) 当期（或下N期）的财报
+	next_a_report_date
+	next_a_report_period
+
+(信号标注):
+	choose: 1-以财报为比较基准，0-以前期业绩预告为比较基准；当之前没有任何比较基准允许缺失
+	is_valid: 1-比较基准有意义，0-比较基准无意义 （比较基准超过一年，或者财报已发布）
+	is_qoq: 1- 恰好是季度环比，0- 不是相邻季度的环比 2- 恰好是同期的业绩预告
+	is_link: 业绩链有意义(至少有一个业绩预告有上下限，同时存在一年内的比较基准)
+	is_signal: 改善与否信号是否有意义 (前提: 业绩链有意义)
+	is_improve: 1-绝对改善 0-不确定 -1-绝对恶化 2-数据不确定性强 3- 信号无意义(signal~=1)
+
+(其他) cmp_period: 比较基准的报告期
+
 ===============================
 2- 业绩预告表
 earning_forecast_merge(只考虑季度/半年度/年度的累积净利润)
@@ -83,7 +73,7 @@ earning_forecast_merge(只考虑季度/半年度/年度的累积净利润)
 基本数据:
 	stock_code
 	stock_name
-	efctid: 业绩事件id 
+	primary_key: 业绩事件id 
 当期数据:
 	report_date: 报告发布时间
 	report_period: 报告期 (文本格式，YYYYMMDD)
@@ -97,39 +87,86 @@ earning_forecast_merge(只考虑季度/半年度/年度的累积净利润)
 	is_up_original: 标注eup是原始数据，或是计算所得
 	is_low_original: 标注elow是原始数据，或计算所得
 
-(已发布的)最近季度的业绩公告:
-	prev_efctid
-	prev_report_date
-	prev_report_period
-	prev_source
-	prev_earning_des
-	prev_eup_type
-	prev_eup
-	prev_elow_type
-	prev_elow
-	prev_f_type
-	prev_is_up_original
-	prev_is_low_original
-
-(已发布的)最近季度的利润数据:
+(已发布的)最近季度的财报数据:
 	a_report_period
 	a_report_date
 	a_gro_n
 	a_e_type
 
+
+(已发布的)最近季度的业绩公告:
+	prev_key
+	prev_report_date
+	prev_report_period
+	prev_source
+	prev_eup_type
+	prev_eup
+	prev_elow_type
+	prev_elow
+	prev_f_type
+
+(未发布) 当期（或下N期）业绩公告
+	next_key
+	next_f_report_date
+	next_f_report_period
+
+(未发布) 当期（或下N期）的财报
+	next_a_report_date
+	next_a_report_period
+
+
+
+
 (信号标注):
-	choose: 1-以真实公告为比较基准，0-以前期业绩预告为比较基准；当之前没有任何比较基准允许缺失
-	is_valid: 1-比较基准有意义，0-比较基准无意义 （比较基准超过一年）
+	is_pub: 1- 当期或者下N期已经有财报发布。 0- 未发布
+	choose: 1-以财报为比较基准，0-以前期业绩预告为比较基准；当之前没有任何比较基准允许缺失
+	is_valid: 1-比较基准有意义，0-比较基准无意义 （比较基准超过一年，或者财报已发布）
 	is_qoq: 1- 恰好是季度环比，0- 不是相邻季度的环比 
 	is_link: 业绩链有意义(至少有一个业绩预告有上下限，同时存在一年内的比较基准)
 	is_signal: 改善与否信号是否有意义 (前提: 业绩链有意义)
-	is_improve: 1-绝对改善 0-不确定 -1-绝对恶化 2-数据不确定性强 .-没办法比较
+	is_improve: 1-绝对改善 0-不确定 -1-绝对恶化 2-数据不确定性强 3- 信号无意义(signal~=1)
 
 (其他) cmp_period: 比较基准的报告期
 
 
-注意事项:
-(1) 针对同一公告期，已按照发布时间以及数据来源，进行去重。
-(2) 同一公告日，可能存在大于两个报告期的预告数据。暂不予以去重。	
-	
-	
+********************************************交易信号表 **************************	
+代码: ~/全业绩链事件_生成交易信号.sas	
+
+============================
+1-利润表信号
+actual_signal: 基于earning_actual_merge的交易信号（信号标准: is_improve = 1)
+=============================	
+primary_key: 仍保留earning_actual_merge中的primary_key
+stock_code:
+stock_name:
+report_date:
+report_period:
+next_a_report_date: 与earning_actual_merge中一样
+next_f_report_date: 与earning_actual_merge中一样
+a_signal
+
+============================
+2-业绩预告信号
+forecast_signal: 基于earning_forecast_merge的交易信号（信号标准: is_improve = 1 or 0 且预增)
+=============================	
+primary_key: 仍保留earning_forecast_merge中的primary_key
+stock_code:
+stock_name:
+report_date:
+report_period:
+next_a_report_date: 与earning_forecast_merge中一样
+next_f_report_date: 与earning_forecast_merge中一样
+f_signal:
+
+============================
+3-业绩预告+利润表信号
+signal: 基于earning_forecast_merge和earning_forecast_merge的交易信号
+=============================	
+primary_key: 重新设定的key
+stock_code:
+stock_name:
+report_date:
+report_period:
+sell_date: 选取min(next_a_report_date和next_f_report_date中的最小值)
+target: 0- 参照利润表; 1-参考业绩预告表
+
